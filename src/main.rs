@@ -43,8 +43,20 @@ fn spawn_snake(mut commands: Commands) {
     commands.spawn(sprite_bundle).insert(SnakeHead {});
 }
 
-fn snake_movement(mut head_positions: Query<(&SnakeHead, &mut Transform)>) {
-    for (_head, mut transform) in head_positions.iter_mut() {
-        transform.translation.y += 2.;
+// 蛇头移动
+fn snake_movement(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut head_positions: Query<&mut Transform, With<SnakeHead>>,
+) {
+    for mut transform in head_positions.iter_mut() {
+        if keyboard_input.pressed(KeyCode::ArrowLeft) {
+            transform.translation.x -= 2.;
+        } else if keyboard_input.pressed(KeyCode::ArrowRight) {
+            transform.translation.x += 2.;
+        } else if keyboard_input.pressed(KeyCode::ArrowUp) {
+            transform.translation.y -= 2.;
+        } else if keyboard_input.pressed(KeyCode::ArrowDown) {
+            transform.translation.y += 2.;
+        }
     }
 }
