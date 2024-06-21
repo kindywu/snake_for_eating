@@ -12,6 +12,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, (setup_camera, spawn_snake))
+        .add_systems(Update, snake_movement)
         .run();
 }
 
@@ -26,6 +27,7 @@ fn setup_camera(mut commands: Commands) {
 fn spawn_snake(mut commands: Commands) {
     // A Bundle of components for drawing a single sprite from an image.
 
+    // 创建精灵
     let sprite_bundle = SpriteBundle {
         sprite: Sprite {
             color: SNAKE_HEAD_COLOR,
@@ -39,4 +41,10 @@ fn spawn_snake(mut commands: Commands) {
     };
     // Adds a Bundle of components to the entity
     commands.spawn(sprite_bundle).insert(SnakeHead {});
+}
+
+fn snake_movement(mut head_positions: Query<(&SnakeHead, &mut Transform)>) {
+    for (_head, mut transform) in head_positions.iter_mut() {
+        transform.translation.y += 2.;
+    }
 }
