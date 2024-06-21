@@ -24,6 +24,8 @@ fn setup_camera(mut commands: Commands) {
 
 // 设置蛇头
 fn spawn_snake(mut commands: Commands) {
+    // A Bundle of components for drawing a single sprite from an image.
+
     let sprite_bundle = SpriteBundle {
         sprite: Sprite {
             color: SNAKE_HEAD_COLOR,
@@ -35,5 +37,6 @@ fn spawn_snake(mut commands: Commands) {
         },
         ..default()
     };
-    commands.spawn(sprite_bundle).insert(SnakeHead);
+    // Adds a Bundle of components to the entity
+    commands.spawn(sprite_bundle).insert(SnakeHead {});
 }
