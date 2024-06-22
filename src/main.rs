@@ -29,8 +29,8 @@ fn main() {
             1.0,
             TimerMode::Repeating,
         )))
-        .insert_resource(SnakeMovementTimer(Timer::from_seconds(
-            0.1,
+        .insert_resource(KeyboardInputTimer(Timer::from_seconds(
+            0.2,
             TimerMode::Repeating,
         )))
         .add_systems(Startup, (setup_camera, spawn_snake))
@@ -71,14 +71,14 @@ fn spawn_snake(mut commands: Commands) {
 }
 
 #[derive(Resource)]
-struct SnakeMovementTimer(Timer);
+struct KeyboardInputTimer(Timer);
 
 // 蛇头移动
 fn snake_movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut head_positions: Query<&mut Position, With<SnakeHead>>,
     time: Res<Time>,
-    mut timer: ResMut<SnakeMovementTimer>,
+    mut timer: ResMut<KeyboardInputTimer>,
 ) {
     if !timer.0.tick(time.delta()).finished() {
         return;
