@@ -3,17 +3,10 @@ use bevy::{
     window::{PrimaryWindow, WindowResolution},
 };
 use rand::prelude::random;
-
-// 常量，蛇头颜色
-const SNAKE_HEAD_COLOR: Color = Color::rgb(0.7, 0.7, 0.7);
-const FOOD_COLOR: Color = Color::rgb(1.0, 0.0, 1.0);
-const ARENA_WIDTH: u32 = 10;
-const ARENA_HEIGHT: u32 = 10;
-// 结构体，蛇头
-#[derive(Component)]
-struct SnakeHead {
-    direction: Direction,
-}
+use snake_for_eating::{
+    Position, Size, SnakeHead, SnakeMoveDirection, SnakeSegment, SnakeSegments, SnakeTimer,
+    ARENA_HEIGHT, ARENA_WIDTH, FOOD_COLOR, SNAKE_HEAD_COLOR, SNAKE_SEGMENT_COLOR,
+};
 
 // 主函数
 fn main() {
@@ -31,10 +24,8 @@ fn main() {
             1.0,
             TimerMode::Repeating,
         )))
-        .insert_resource(KeyboardInputTimer(Timer::from_seconds(
-            0.2,
-            TimerMode::Repeating,
-        )))
+        .insert_resource(SnakeTimer(Timer::from_seconds(0.2, TimerMode::Repeating)))
+        .insert_resource(SnakeSegments::default())
         .add_systems(Startup, (setup_camera, spawn_snake))
         .add_systems(
             Update,
@@ -57,9 +48,17 @@ fn setup_camera(mut commands: Commands) {
 }
 
 // 设置蛇头
-fn spawn_snake(mut commands: Commands) {
+fn spawn_snake(mut commands: Commands, mut segments: ResMut<SnakeSegments>) {
     // A Bundle of components for drawing a single sprite from an image.
 
+    *segments = SnakeSegments(vec![
+        // Adds a Bundle of components to the entity
+        spawn_head(&mut commands, Position { x: 3, y: 3 }),
+        spawn_segment(&mut commands, Position { x: 3, y: 2 }),
+    ]);
+}
+
+fn spawn_head(commands: &mut Commands, position: Position) -> Entity {
     // 创建精灵
     let sprite_bundle = SpriteBundle {
         sprite: Sprite {
@@ -72,26 +71,32 @@ fn spawn_snake(mut commands: Commands) {
         },
         ..default()
     };
-    // Adds a Bundle of components to the entity
+
     commands
         .spawn(sprite_bundle)
         .insert(SnakeHead {
-            direction: Direction::Init,
+            direction: SnakeMoveDirection::Init,
         })
-        .insert(Position { x: 3, y: 3 })
-        .insert(Size::square(0.8));
+        .insert(position)
+        .insert(Size::square(0.8))
+        .id()
 }
 
-#[derive(Resource)]
-struct KeyboardInputTimer(Timer);
-
-#[derive(PartialEq, Debug, Clone, Copy)]
-enum Direction {
-    Init,
-    Left,
-    Up,
-    Right,
-    Down,
+fn spawn_segment(commands: &mut Commands, position: Position) -> Entity {
+    // 创建精灵
+    let sprite_bundle = SpriteBundle {
+        sprite: Sprite {
+            color: SNAKE_SEGMENT_COLOR,
+            ..default()
+        },
+        ..default()
+    };
+    commands
+        .spawn(sprite_bundle)
+        .insert(SnakeSegment)
+        .insert(position)
+        .insert(Size::square(0.65))
+        .id()
 }
 
 fn snake_movement_input(
@@ -100,56 +105,53 @@ fn snake_movement_input(
 ) {
     for mut head in heads.iter_mut() {
         if keyboard_input.pressed(KeyCode::ArrowLeft) {
-            head.direction = Direction::Left;
+            head.direction = SnakeMoveDirection::Left;
         } else if keyboard_input.pressed(KeyCode::ArrowRight) {
-            head.direction = Direction::Right;
+            head.direction = SnakeMoveDirection::Right;
         } else if keyboard_input.pressed(KeyCode::ArrowUp) {
-            head.direction = Direction::Up;
+            head.direction = SnakeMoveDirection::Up;
         } else if keyboard_input.pressed(KeyCode::ArrowDown) {
-            head.direction = Direction::Down;
+            head.direction = SnakeMoveDirection::Down;
         }
     }
 }
 
 // 蛇头移动
 fn snake_movement(
-    mut heads: Query<(&mut Position, &SnakeHead)>,
     time: Res<Time>,
-    mut timer: ResMut<KeyboardInputTimer>,
+    mut timer: ResMut<SnakeTimer>,
+    mut heads: Query<(Entity, &SnakeHead)>,
+    mut positions: Query<&mut Position>,
+    segments: ResMut<SnakeSegments>,
 ) {
     if !timer.0.tick(time.delta()).finished() {
         return;
     }
 
-    if let Some((mut pos, head)) = heads.iter_mut().next() {
-        info!("{:?}", &head.direction);
+    if let Some((head_entity, head)) = heads.iter_mut().next() {
+        let segment_positions = segments
+            .iter()
+            .map(|e| *positions.get_mut(*e).unwrap())
+            .collect::<Vec<Position>>();
+
+        let mut head_pos = positions.get_mut(head_entity).unwrap();
+
+        // info!("{:?}", &head.direction);
         match &head.direction {
-            Direction::Init => (),
-            Direction::Left => pos.x -= 1,
-            Direction::Up => pos.y += 1,
-            Direction::Right => pos.x += 1,
-            Direction::Down => pos.y -= 1,
+            SnakeMoveDirection::Init => (),
+            SnakeMoveDirection::Left => head_pos.x -= 1,
+            SnakeMoveDirection::Up => head_pos.y += 1,
+            SnakeMoveDirection::Right => head_pos.x += 1,
+            SnakeMoveDirection::Down => head_pos.y -= 1,
         };
-    }
-}
 
-#[derive(Component, Clone, Copy, PartialEq, Eq)]
-struct Position {
-    x: i32,
-    y: i32,
-}
-
-#[derive(Component)]
-struct Size {
-    width: f32,
-    height: f32,
-}
-
-impl Size {
-    pub fn square(x: f32) -> Self {
-        Self {
-            width: x,
-            height: x,
+        if head.direction != SnakeMoveDirection::Init {
+            segment_positions
+                .iter()
+                .zip(segments.iter().skip(1))
+                .for_each(|(pos, segment)| {
+                    *positions.get_mut(*segment).unwrap() = *pos;
+                })
         }
     }
 }
