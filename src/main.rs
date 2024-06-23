@@ -11,7 +11,9 @@ const ARENA_WIDTH: u32 = 10;
 const ARENA_HEIGHT: u32 = 10;
 // 结构体，蛇头
 #[derive(Component)]
-struct SnakeHead;
+struct SnakeHead {
+    direction: Direction,
+}
 
 // 主函数
 fn main() {
@@ -34,7 +36,15 @@ fn main() {
             TimerMode::Repeating,
         )))
         .add_systems(Startup, (setup_camera, spawn_snake))
-        .add_systems(Update, (snake_movement, size_scaling, position_translation))
+        .add_systems(
+            Update,
+            (
+                snake_movement_input.before(snake_movement),
+                snake_movement,
+                size_scaling,
+                position_translation,
+            ),
+        )
         .add_systems(Update, food_spawner)
         .run();
 }
@@ -65,7 +75,9 @@ fn spawn_snake(mut commands: Commands) {
     // Adds a Bundle of components to the entity
     commands
         .spawn(sprite_bundle)
-        .insert(SnakeHead {})
+        .insert(SnakeHead {
+            direction: Direction::Init,
+        })
         .insert(Position { x: 3, y: 3 })
         .insert(Size::square(0.8));
 }
@@ -73,10 +85,35 @@ fn spawn_snake(mut commands: Commands) {
 #[derive(Resource)]
 struct KeyboardInputTimer(Timer);
 
+#[derive(PartialEq, Debug, Clone, Copy)]
+enum Direction {
+    Init,
+    Left,
+    Up,
+    Right,
+    Down,
+}
+
+fn snake_movement_input(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut heads: Query<&mut SnakeHead>,
+) {
+    for mut head in heads.iter_mut() {
+        if keyboard_input.pressed(KeyCode::ArrowLeft) {
+            head.direction = Direction::Left;
+        } else if keyboard_input.pressed(KeyCode::ArrowRight) {
+            head.direction = Direction::Right;
+        } else if keyboard_input.pressed(KeyCode::ArrowUp) {
+            head.direction = Direction::Up;
+        } else if keyboard_input.pressed(KeyCode::ArrowDown) {
+            head.direction = Direction::Down;
+        }
+    }
+}
+
 // 蛇头移动
 fn snake_movement(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut head_positions: Query<&mut Position, With<SnakeHead>>,
+    mut heads: Query<(&mut Position, &SnakeHead)>,
     time: Res<Time>,
     mut timer: ResMut<KeyboardInputTimer>,
 ) {
@@ -84,16 +121,15 @@ fn snake_movement(
         return;
     }
 
-    for mut pos in head_positions.iter_mut() {
-        if keyboard_input.pressed(KeyCode::ArrowLeft) {
-            pos.x -= 1;
-        } else if keyboard_input.pressed(KeyCode::ArrowRight) {
-            pos.x += 1;
-        } else if keyboard_input.pressed(KeyCode::ArrowUp) {
-            pos.y += 1;
-        } else if keyboard_input.pressed(KeyCode::ArrowDown) {
-            pos.y -= 1;
-        }
+    if let Some((mut pos, head)) = heads.iter_mut().next() {
+        info!("{:?}", &head.direction);
+        match &head.direction {
+            Direction::Init => (),
+            Direction::Left => pos.x -= 1,
+            Direction::Up => pos.y += 1,
+            Direction::Right => pos.x += 1,
+            Direction::Down => pos.y -= 1,
+        };
     }
 }
 
