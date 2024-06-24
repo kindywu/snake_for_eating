@@ -4,7 +4,7 @@ use bevy::{
 };
 use rand::prelude::random;
 use snake_for_eating::{
-    Food, FoodSpawnTimer, GrowthEvent, LastTailPosition, Position, Size, SnakeHead,
+    Food, FoodSpawnTimer, GameOverEvent, GrowthEvent, LastTailPosition, Position, Size, SnakeHead,
     SnakeMoveDirection, SnakeSegment, SnakeSegments, SnakeTimer, ARENA_HEIGHT, ARENA_WIDTH,
     FOOD_COLOR, SNAKE_HEAD_COLOR, SNAKE_SEGMENT_COLOR,
 };
@@ -29,12 +29,14 @@ fn main() {
         .insert_resource(SnakeSegments::default())
         .insert_resource(LastTailPosition::default())
         .add_event::<GrowthEvent>()
+        .add_event::<GameOverEvent>()
         .add_systems(Startup, (setup_camera, spawn_snake))
         .add_systems(
             Update,
             (
                 snake_movement_input.before(snake_movement),
                 snake_movement,
+                game_over.after(snake_movement),
                 snake_eating,
                 snake_growth,
                 size_scaling,
@@ -82,6 +84,7 @@ fn spawn_head(commands: &mut Commands, position: Position) -> Entity {
         .insert(SnakeHead {
             direction: SnakeMoveDirection::Init,
         })
+        .insert(SnakeSegment)
         .insert(position)
         .insert(Size::square(0.8))
         .id()
@@ -129,12 +132,16 @@ fn snake_movement(
     mut positions: Query<&mut Position>,
     segments: ResMut<SnakeSegments>,
     mut last_tail_position: ResMut<LastTailPosition>,
+    mut game_over_writer: EventWriter<GameOverEvent>,
 ) {
     if !timer.0.tick(time.delta()).finished() {
         return;
     }
 
     if let Some((head_entity, head)) = heads.iter_mut().next() {
+        if head.direction == SnakeMoveDirection::Init {
+            return;
+        }
         let segment_positions = segments
             .iter()
             .map(|e| *positions.get_mut(*e).unwrap())
@@ -143,22 +150,34 @@ fn snake_movement(
         let mut head_pos = positions.get_mut(head_entity).unwrap();
 
         // info!("{:?}", &head.direction);
-        match &head.direction {
-            SnakeMoveDirection::Init => (),
+        match head.direction {
+            SnakeMoveDirection::Init => return,
             SnakeMoveDirection::Left => head_pos.x -= 1,
             SnakeMoveDirection::Up => head_pos.y += 1,
             SnakeMoveDirection::Right => head_pos.x += 1,
             SnakeMoveDirection::Down => head_pos.y -= 1,
         };
 
-        if head.direction != SnakeMoveDirection::Init {
-            segment_positions
-                .iter()
-                .zip(segments.iter().skip(1))
-                .for_each(|(pos, segment)| {
-                    *positions.get_mut(*segment).unwrap() = *pos;
-                })
+        if head_pos.x < 0
+            || head_pos.y < 0
+            || head_pos.x >= ARENA_WIDTH as i32
+            || head_pos.y >= ARENA_HEIGHT as i32
+        {
+            // warn!("send game over from head pos outside the range");
+            game_over_writer.send(GameOverEvent);
         }
+
+        if segment_positions.contains(&head_pos) {
+            // warn!("send game over from head pos in body positions");
+            game_over_writer.send(GameOverEvent);
+        }
+
+        segment_positions
+            .iter()
+            .zip(segments.iter().skip(1))
+            .for_each(|(pos, segment)| {
+                *positions.get_mut(*segment).unwrap() = *pos;
+            });
 
         *last_tail_position = LastTailPosition(Some(*segment_positions.last().unwrap()));
     }
@@ -242,5 +261,21 @@ fn snake_growth(
 ) {
     if growth_reader.read().next().is_some() {
         segments.push(spawn_segment(&mut commands, last_tail_position.0.unwrap()))
+    }
+}
+
+fn game_over(
+    mut commands: Commands,
+    mut reader: EventReader<GameOverEvent>,
+    segments_res: ResMut<SnakeSegments>,
+    food: Query<Entity, With<Food>>,
+    segments: Query<Entity, With<SnakeSegment>>,
+) {
+    if reader.read().next().is_some() {
+        // warn!("game over");
+        for ent in segments.iter().chain(food.iter()) {
+            commands.entity(ent).despawn();
+        }
+        spawn_snake(commands, segments_res);
     }
 }

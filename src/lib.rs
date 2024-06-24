@@ -68,3 +68,6 @@ pub struct GrowthEvent;
 
 #[derive(Default, Resource)]
 pub struct LastTailPosition(pub Option<Position>);
+
+#[derive(Event)]
+pub struct GameOverEvent;
