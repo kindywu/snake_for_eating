@@ -6,7 +6,7 @@ use rand::prelude::random;
 use snake_for_eating::{
     Food, FoodSpawnTimer, GameOverEvent, GrowthEvent, LastTailPosition, Position, Size, SnakeHead,
     SnakeMoveDirection, SnakeSegment, SnakeSegments, SnakeTimer, ARENA_HEIGHT, ARENA_WIDTH,
-    FOOD_COLOR, SNAKE_HEAD_COLOR, SNAKE_SEGMENT_COLOR,
+    FOOD_COLOR, SNAKE_HEAD_COLOR, SNAKE_SEGMENT_COLOR, WINDOW_HEIGHT, WINDOW_WIDTH,
 };
 
 // 主函数
@@ -15,7 +15,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Snake!".to_string(),
-                resolution: WindowResolution::new(500.0, 500.0),
+                resolution: WindowResolution::new(WINDOW_WIDTH, WINDOW_HEIGHT),
                 ..default()
             }),
             ..default()
@@ -163,12 +163,12 @@ fn snake_movement(
             || head_pos.x >= ARENA_WIDTH as i32
             || head_pos.y >= ARENA_HEIGHT as i32
         {
-            // warn!("send game over from head pos outside the range");
+            warn!("send game over for out of bound");
             game_over_writer.send(GameOverEvent);
         }
 
         if segment_positions.contains(&head_pos) {
-            // warn!("send game over from head pos in body positions");
+            warn!("send game over for come back to bite");
             game_over_writer.send(GameOverEvent);
         }
 
@@ -216,8 +216,27 @@ fn position_translation(
     }
 }
 
-fn food_spawner(mut commands: Commands, time: Res<Time>, mut timer: ResMut<FoodSpawnTimer>) {
+fn food_spawner(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut timer: ResMut<FoodSpawnTimer>,
+    positions: Query<&mut Position>,
+    segments: ResMut<SnakeSegments>,
+) {
     if !timer.0.tick(time.delta()).finished() {
+        return;
+    }
+
+    let segment_positions = segments
+        .iter()
+        .map(|e| *positions.get(*e).unwrap())
+        .collect::<Vec<Position>>();
+
+    let pos = Position {
+        x: (random::<f32>() * ARENA_WIDTH as f32) as i32,
+        y: (random::<f32>() * ARENA_HEIGHT as f32) as i32,
+    };
+    if segment_positions.contains(&pos) {
         return;
     }
 
@@ -230,10 +249,7 @@ fn food_spawner(mut commands: Commands, time: Res<Time>, mut timer: ResMut<FoodS
             ..default()
         })
         .insert(Food)
-        .insert(Position {
-            x: (random::<f32>() * ARENA_WIDTH as f32) as i32,
-            y: (random::<f32>() * ARENA_HEIGHT as f32) as i32,
-        })
+        .insert(pos)
         .insert(Size::square(0.8));
 }
 
@@ -272,7 +288,7 @@ fn game_over(
     segments: Query<Entity, With<SnakeSegment>>,
 ) {
     if reader.read().next().is_some() {
-        // warn!("game over");
+        warn!("game over");
         for ent in segments.iter().chain(food.iter()) {
             commands.entity(ent).despawn();
         }

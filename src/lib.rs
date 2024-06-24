@@ -4,12 +4,14 @@ use bevy::{
     time::Timer,
 };
 
-// 常量，蛇头颜色
+// 常量
+pub const WINDOW_WIDTH: f32 = 500.0;
+pub const WINDOW_HEIGHT: f32 = 500.0;
 pub const SNAKE_HEAD_COLOR: Color = Color::rgb(0.7, 0.7, 0.7);
 pub const SNAKE_SEGMENT_COLOR: Color = Color::rgb(0.5, 0.5, 0.5);
 pub const FOOD_COLOR: Color = Color::rgb(1.0, 0.0, 1.0);
-pub const ARENA_WIDTH: u32 = 10;
-pub const ARENA_HEIGHT: u32 = 10;
+pub const ARENA_WIDTH: u32 = 25;
+pub const ARENA_HEIGHT: u32 = 25;
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
