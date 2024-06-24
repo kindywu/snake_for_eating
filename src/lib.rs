@@ -1,5 +1,5 @@
 use bevy::{
-    prelude::{Component, Deref, DerefMut, Entity, Resource},
+    prelude::{Component, Deref, DerefMut, Entity, Event, Resource},
     render::color::Color,
     time::Timer,
 };
@@ -62,3 +62,9 @@ pub struct Food;
 
 #[derive(Resource)]
 pub struct FoodSpawnTimer(pub Timer);
+
+#[derive(Event)]
+pub struct GrowthEvent;
+
+#[derive(Default, Resource)]
+pub struct LastTailPosition(pub Option<Position>);
