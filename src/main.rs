@@ -4,8 +4,9 @@ use bevy::{
 };
 use rand::prelude::random;
 use snake_for_eating::{
-    Position, Size, SnakeHead, SnakeMoveDirection, SnakeSegment, SnakeSegments, SnakeTimer,
-    ARENA_HEIGHT, ARENA_WIDTH, FOOD_COLOR, SNAKE_HEAD_COLOR, SNAKE_SEGMENT_COLOR,
+    Food, FoodSpawnTimer, Position, Size, SnakeHead, SnakeMoveDirection, SnakeSegment,
+    SnakeSegments, SnakeTimer, ARENA_HEIGHT, ARENA_WIDTH, FOOD_COLOR, SNAKE_HEAD_COLOR,
+    SNAKE_SEGMENT_COLOR,
 };
 
 // 主函数
@@ -188,12 +189,6 @@ fn position_translation(
         )
     }
 }
-
-#[derive(Component)]
-struct Food;
-
-#[derive(Resource)]
-struct FoodSpawnTimer(Timer);
 
 fn food_spawner(mut commands: Commands, time: Res<Time>, mut timer: ResMut<FoodSpawnTimer>) {
     if !timer.0.tick(time.delta()).finished() {

@@ -56,3 +56,9 @@ pub struct SnakeSegment;
 
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct SnakeSegments(pub Vec<Entity>);
+
+#[derive(Component)]
+pub struct Food;
+
+#[derive(Resource)]
+pub struct FoodSpawnTimer(pub Timer);
